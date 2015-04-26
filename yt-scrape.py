@@ -29,8 +29,8 @@ def captureYtData(yt_file):
 		record = {"id":vid,
 				  "duration":duration,
 				  "link":link,
-				  "title":title,
-				  "user":user,
+				  "title":title.encode('utf-8'),
+				  "user":user.encode('utf-8'),
 				  "views":views,
 				  "add_order": add_order}
 		data.append(record)
@@ -51,12 +51,9 @@ def dataToCSV(data):
 		header = ['id', 'rev_order', 'duration', 'url', 'title', 'user', 'views']
 		file_writer.writerow(header)
 		for d in data:
-			row = [d['id'], d['add_order'], d['duration'], d['link'], d['title'].encode('utf-8'), d['user'], d['views']]
+			row = [d['id'], d['add_order'], d['duration'], d['link'], d['title'], d['user'], d['views']]
 			print row
 			file_writer.writerow(row)
-
-
-
 
 if __name__ == '__main__':
 	data = captureYtData(YT_FILE)
