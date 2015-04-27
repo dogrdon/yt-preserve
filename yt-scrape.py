@@ -52,7 +52,6 @@ def dataToCSV(data):
 		file_writer.writerow(header)
 		for d in data:
 			row = [d['id'], d['add_order'], d['duration'], d['link'], d['title'], d['user'], d['views']]
-			print row
 			file_writer.writerow(row)
 
 if __name__ == '__main__':
