@@ -1,9 +1,11 @@
 import pafy
 from pymongo import MongoClient
+import csv
+
+c = MongoClient()
+coll = c.yt_preserve.videos
 
 def updateRecords():
-	c = MongoClient()
-	coll = c.yt_preserve.videos
 	data = coll.find()
 
 	for d in data:
@@ -30,5 +32,21 @@ def updateRecords():
 			print "There was an error: ", e
 			continue
 
+def getUnavailable():
+	'''get the unavailable records for a little manual remediation'''
+	unavailable = coll.find({"available":0})
+	
+	with open('./data/yt-unavailable.csv', 'wt') as f:
+		file_writer = csv.writer(f)
+		unavail_headers = ['id', 'add_order', 'duration', 'link', 'title', 'user', 'views']
+		file_writer.writerow(unavail_headers)
+		for i in unavailable:
+			row = [i['id'], i['add_order'], i['duration'], i['link'], i['title'].encode('utf-8'), i['user'].encode('utf-8'), i['views']]
+			file_writer.writerow(row)
+
+def updateUnavailable():
+
+
 if __name__ == '__main__':
-	updateRecords()
+	#updateRecords()
+	getUnavailable()
