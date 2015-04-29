@@ -45,8 +45,35 @@ def getUnavailable():
 			file_writer.writerow(row)
 
 def updateUnavailable():
+	with open('./data/yt-unavailable_updated.csv', 'rU') as f:
+		csvdata = csv.reader(f)
+		header = next(csvdata)
+		headerIdx = {header[i]: i for i in range(len(header))}
+
+		for c in csvdata:
+			newurl = c[headerIdx['viable_replacement']].strip()
+			vidID = c[headerIdx['id']]
+			video_disp = c[headerIdx['video_disposition']]
+			user_disp = c[headerIdx['user_disposition']]
+			if newurl != 'na':
+				data = {
+					"new_copy": newurl,
+					"status": 'refreshed',
+					"user_disposition": user_disp,
+					"video_disposition": video_disp
+					}
+			else:
+				data = {"status":"gone",
+						"user_disposition": user_disp,
+						"video_disposition": video_disp
+						}
+
+			coll.update({'_id':vidID}, {'$set':data})
 
 
 if __name__ == '__main__':
 	#updateRecords()
-	getUnavailable()
+	#getUnavailable()
+	updateUnavailable()
+
+
