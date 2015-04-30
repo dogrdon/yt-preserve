@@ -70,10 +70,34 @@ def updateUnavailable():
 
 			coll.update({'_id':vidID}, {'$set':data})
 
+def arrangeIDs():
+	available = coll.find({"available":1})
+	unavailable = coll.find({"available":0})
+
+	for a in available:
+		vidID = a['id'].strip()
+		data = {'uploadID':vidID}
+		coll.update({'_id':vidID}, {'$set':data})
+
+	for u in unavailable:
+		vidID = u['id'].strip()
+		if 'new_copy' in u:
+			uvidID = u['new_copy'].split('?v=')[1].strip()
+		else:
+			uvidID = 'VOID'
+		data = {'uploadID':uvidID}
+		coll.update({'_id':vidID}, {'$set':data})
+
+def uploadToPlaylist():
+	data = coll.find().sort('add_order', 1)
+	for d in data:
+		'''UPLOAD TO NEW PLAYLIST HERE YOUTUBE'''
+		#print d['add_order'], d['uploadID']
 
 if __name__ == '__main__':
 	#updateRecords()
 	#getUnavailable()
-	updateUnavailable()
-
+	#updateUnavailable()
+	#arrangeIDs()
+	uploadToPlaylist()
 
