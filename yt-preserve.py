@@ -89,6 +89,11 @@ def arrangeIDs():
 		coll.update({'_id':vidID}, {'$set':data})
 
 def uploadToPlaylist():
+	BASE_URL = "https://www.googleapis.com/youtube/v3"
+	ADD_TO_PLAYLIST = "/playlistItems?part=snippet"
+	body = """
+		{}
+	"""
 	data = coll.find().sort('add_order', 1)
 	for d in data:
 		'''UPLOAD TO NEW PLAYLIST HERE YOUTUBE'''
