@@ -1,6 +1,7 @@
 import pafy
 from pymongo import MongoClient
 import csv
+import yt_connect as ytc
 
 c = MongoClient()
 coll = c.yt_preserve.videos
@@ -88,16 +89,24 @@ def arrangeIDs():
 		data = {'uploadID':uvidID}
 		coll.update({'_id':vidID}, {'$set':data})
 
-def uploadToPlaylist():
-	BASE_URL = "https://www.googleapis.com/youtube/v3"
-	ADD_TO_PLAYLIST = "/playlistItems?part=snippet"
-	body = """
-		{}
-	"""
+def uploadToPlaylist(playlist):
 	data = coll.find().sort('add_order', 1)
+	youtube_client = ytc.ytConnect()
+	playlistID = playlist
+	print youtube_client
 	for d in data:
-		'''UPLOAD TO NEW PLAYLIST HERE YOUTUBE'''
-		#print d['add_order'], d['uploadID']
+		video_id = d['uploadID']
+		if video_id != 'VOID':
+			body = {'snippet':{
+						'playlistId': playlistID,
+						'resourceId': {
+							'kind': 'youtube#video',
+							'videoId': video_id
+						}
+				}
+			}
+			print 'uploading %s now ...' % (video_id)
+			add_video_request = youtube_client.playlistItems().insert(part="snippet", body=body).execute()
 
 if __name__ == '__main__':
 	#updateRecords()
