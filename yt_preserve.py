@@ -1,117 +1,35 @@
 import pafy
-from pymongo import MongoClient
-import csv
 import yt_connect as ytc
+import config.creds as creds
 
-c = MongoClient()
-coll = c.yt_preserve.videos
+_BASE = 'https://www.youtube.com/'
+_VID_PATH = 'watch?v='
+_PL_PATH = 'playlist?list='
 
-def updateRecords():
-	data = coll.find()
+def add_index(playlist_data):
+	pl_count = 1
+	for i in playlist_data['items']:
+		i['add_order'] = pl_count
+		pl_count += 1
+	return playlist_data
 
-	for d in data:
-		url = d['link']
-		title = d['title'].encode('utf-8')
 
-		try:
-			vid = pafy.new(url)
-			update = {'available': 1,
-					  'description': vid.description,
-					  'keywords': vid.keywords,
-					  'update_views': vid.viewcount,
-					  'age_ver': vid.age_ver,
-					  'uploaded': vid.published,
-					  'new_rating': vid.rating,
-					  'category': vid.category,
-					  'curr_duration': vid.duration
-					  }
-			coll.update({'_id':d['id']}, {'$set':update})
-		except IOError:
-			update = {'available':0}
-			coll.update({'_id':d['id']}, {'$set':update})
-		except ValueError as e:
-			print "There was an error: ", e
-			continue
+def downloadSave(playlist):
+	playlist_url = _BASE+_PL_PATH+playlist
+	playlist_data = pafy.get_playlist(playlist_url)
+	playlist_data_idxd = add_index(playlist_data)
+	for i in playlist_data_idxd['items']:
+		vid_id = i['playlist_meta']['encrypted_id']
+		vid_url = _BASE+_VID_PATH+vid_id
+		video = pafy.new(vid_url)
+		best_dl = video.getbest(preftype="mp4")
+		filepath = "./videos/%s/%s.%s" % (i['add_order'], vid_id, best_dl.extension)
+		print "now downloading %s - %s to %s" % (i['add_order'], i['playlist_meta']['title'], filepath)
 
-def getUnavailable():
-	'''get the unavailable records for a little manual remediation'''
-	unavailable = coll.find({"available":0})
-	
-	with open('./data/yt-unavailable.csv', 'wt') as f:
-		file_writer = csv.writer(f)
-		unavail_headers = ['id', 'add_order', 'duration', 'link', 'title', 'user', 'views']
-		file_writer.writerow(unavail_headers)
-		for i in unavailable:
-			row = [i['id'], i['add_order'], i['duration'], i['link'], i['title'].encode('utf-8'), i['user'].encode('utf-8'), i['views']]
-			file_writer.writerow(row)
 
-def updateUnavailable():
-	with open('./data/yt-unavailable_updated.csv', 'rU') as f:
-		csvdata = csv.reader(f)
-		header = next(csvdata)
-		headerIdx = {header[i]: i for i in range(len(header))}
 
-		for c in csvdata:
-			newurl = c[headerIdx['viable_replacement']].strip()
-			vidID = c[headerIdx['id']]
-			video_disp = c[headerIdx['video_disposition']]
-			user_disp = c[headerIdx['user_disposition']]
-			if newurl != 'na':
-				data = {
-					"new_copy": newurl,
-					"status": 'refreshed',
-					"user_disposition": user_disp,
-					"video_disposition": video_disp
-					}
-			else:
-				data = {"status":"gone",
-						"user_disposition": user_disp,
-						"video_disposition": video_disp
-						}
 
-			coll.update({'_id':vidID}, {'$set':data})
 
-def arrangeIDs():
-	available = coll.find({"available":1})
-	unavailable = coll.find({"available":0})
-
-	for a in available:
-		vidID = a['id'].strip()
-		data = {'uploadID':vidID}
-		coll.update({'_id':vidID}, {'$set':data})
-
-	for u in unavailable:
-		vidID = u['id'].strip()
-		if 'new_copy' in u:
-			uvidID = u['new_copy'].split('?v=')[1].strip()
-		else:
-			uvidID = 'VOID'
-		data = {'uploadID':uvidID}
-		coll.update({'_id':vidID}, {'$set':data})
-
-def uploadToPlaylist(playlist):
-	data = coll.find().sort('add_order', 1)
-	youtube_client = ytc.ytConnect()
-	playlistID = playlist
-	print youtube_client
-	for d in data:
-		video_id = d['uploadID']
-		if video_id != 'VOID':
-			body = {'snippet':{
-						'playlistId': playlistID,
-						'resourceId': {
-							'kind': 'youtube#video',
-							'videoId': video_id
-						}
-				}
-			}
-			print 'uploading %s now ...' % (video_id)
-			add_video_request = youtube_client.playlistItems().insert(part="snippet", body=body).execute()
 
 if __name__ == '__main__':
-	#updateRecords()
-	#getUnavailable()
-	#updateUnavailable()
-	#arrangeIDs()
-	uploadToPlaylist()
-
+	downloadSave(creds.YOUTUBE_PL)
