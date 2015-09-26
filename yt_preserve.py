@@ -29,15 +29,22 @@ def firstDownloadSave(playlist):
 	playlist_data = pafy.get_playlist(playlist_url)
 	playlist_data_idxd = add_index(playlist_data)
 	existing_dirs = [x[1] for x in os.walk('./videos')][0]
+	print "i've walked the dirs"
 	for i in playlist_data_idxd['items']:
 		vid_id = i['playlist_meta']['encrypted_id']
 		vid_url = _BASE+_VID_PATH+vid_id
-		video = pafy.new(vid_url)
 		order_id = i['add_order']
 		dirname = vid_id
 		filepath = "./videos/%s/%s" % (order_id, dirname)
 		title = i['playlist_meta']['title']
+		print title, order_id
+		##TODO: see update refresh, now that some videos have been removed, we can't update anything
+
 		if str(order_id) not in existing_dirs:
+			print "if you go this far, order id needs to be added"
+			#TODO - factor gdata in
+			#     - figure our why new() fails so much (unknown url)
+			video = pafy.new(vid_url, gdata=True)
 			best_dl = video.getbest(preftype="mp4")
 			ext = best_dl.extension
 			mkdir_p(filepath)
@@ -65,4 +72,5 @@ def refresh():
 
 
 if __name__ == '__main__':
+	print "you have started the preserver..."
 	firstDownloadSave(creds.YOUTUBE_PL)
