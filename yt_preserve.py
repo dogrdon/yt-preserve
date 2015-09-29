@@ -4,11 +4,13 @@ import config.creds as creds
 import json
 import os, sys, errno
 import hashlib
+from pprint import pprint
 
 _BASE = 'https://www.youtube.com/'
 _VID_PATH = 'watch?v='
 _PL_PATH = 'playlist?list='
 _STORE_PATH = './videos'
+_LAST_SAVE_FILE = './videos/last.json'
 
 def add_index(playlist_data):
 	pl_count = 1
@@ -50,6 +52,11 @@ def getDirData(path=_STORE_PATH):
 
 	return dirDataSorted
 
+def fetchOldData():
+	with open(_LAST_SAVE_FILE, 'rb') as fp:
+		data = json.load(fp)
+	return data
+
 def repairMissing(dir_data, playlist_data):
 	playlist_data_updated = {'playlist_id': playlist_data['playlist_id'], 
 							 'description': playlist_data['description'], 
@@ -57,12 +64,29 @@ def repairMissing(dir_data, playlist_data):
 							 'items':[]}
 
 	items = playlist_data_updated['items']
+	olddata = fetchOldData()
+	olditems = olddata['items']
+	old_ids = [i['playlist_meta']['encrypted_id'] for i in olditems]
+	new_ids = [i['playlist_meta']['encrypted_id'] for i in items]
+	dir_ids = dir_data.values()
 
+	'''PROBLEM: this is not adding the videos that have not been downloaded...and it doesn't know that there are any missing.'''
+	'''SOLUTION: open last.json, which is a full record of what was saved last time, 
+					- if dir data not in playlist data, but in old data something was deleted
+					- if playlist data not in dir data and not in old data, it's new, add it.'''
 	for x in playlist_data['items']:
-		if x['playlist_meta']['encrypted_id'] in dir_data.values():
+		curr = x['playlist_meta']['encrypted_id']
+		if curr in dir_ids:
 			items.append(x)
-		else:
-			items.append({'removed':'1', 'playlist_meta': {'encrypted_id': dir_data[int(x['add_order'])]}})
+
+		elif curr not in dir_ids and curr not in old_ids:
+			items.append(x)
+
+		else: '''TODO: this is not working, figure out why.'''
+			for d in dir_ids:	
+				if d not in new_ids and d in old_ids:
+					print "adding removed: "
+					items.append({'removed':'1', 'playlist_meta': {'encrypted_id': dir_data[int(x['add_order'])]}})
 
 	return add_index(playlist_data_updated)
 
@@ -88,7 +112,7 @@ def dlVideos(playlist_data, modified=False):
 
 		playlist_data_idxd = repairMissing(dirData, playlist_data_idxd)
 
-		print playlist_data_idxd
+		print pprint(playlist_data_idxd)
 
 		#getVideos(playlist_data_idxd, modified=True)
 	else:
