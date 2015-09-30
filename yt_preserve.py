@@ -5,12 +5,19 @@ import json
 import os, sys, errno
 import hashlib
 from pprint import pprint
+from datetime import datetime
+
+'''TODO:
+		- really need a better approach to logging the differences between downloads, jeez'''
 
 _BASE = 'https://www.youtube.com/'
 _VID_PATH = 'watch?v='
 _PL_PATH = 'playlist?list='
 _STORE_PATH = './videos'
 _LAST_SAVE_FILE = './videos/last.json'
+
+_SAVE_FILE = 'dl.json'
+_DT_FORMAT = '%Y%m%d%H%M%S'
 
 def add_index(playlist_data):
 	pl_count = 1
@@ -57,37 +64,54 @@ def fetchOldData():
 		data = json.load(fp)
 	return data
 
+def saveLast(json_in):
+	file_path = '%s/%s_%s' % (_STORE_PATH, datetime.now().strftime(_DT_FORMAT), _SAVE_FILE)
+	f = open(file_path, 'wt')
+	j = json.dumps(json_in, indent=4)
+	f.write(j)
+
 def repairMissing(dir_data, playlist_data):
+
+
 	playlist_data_updated = {'playlist_id': playlist_data['playlist_id'], 
 							 'description': playlist_data['description'], 
 							 'title': playlist_data['title'], 
 							 'items':[]}
 
 	items = playlist_data_updated['items']
+	newitems = playlist_data['items']
 	olddata = fetchOldData()
 	olditems = olddata['items']
 	old_ids = [i['playlist_meta']['encrypted_id'] for i in olditems]
-	new_ids = [i['playlist_meta']['encrypted_id'] for i in playlist_data['items']]
+	new_ids = [i['playlist_meta']['encrypted_id'] for i in newitems]
 	dir_ids = dir_data.values()
 
-	'''open last.json, which is a full record of what was saved last time, 
-					- if dir data not in playlist data, but in old data something was deleted
-					- if playlist data not in dir data and not in old data, it's new, add it.'''
-	for x in olddata['items']:
+	def findInDict(encrypted_id):
+		return next((i for i in playlist_data['items'] if i['playlist_meta']['encrypted_id'] == encrypted_id), None)
+
+	for x in olditems:
 		curr = x['playlist_meta']['encrypted_id']
 
 		if curr in dir_ids and curr in new_ids:
-			pl_item = next((i for i in playlist_data['items'] if i['playlist_meta']['encrypted_id'] == curr), None)
+			pl_item = findInDict(curr)
 			items.append(pl_item)
 
 		elif curr not in dir_ids and curr not in old_ids:
-			pl_item = next((i for i in playlist_data['items'] if i['playlist_meta']['encrypted_id'] == curr), None)
+			pl_item = findInDict(curr)
 			items.append(pl_item)
 
 		else: 
 			print "adding removed: %s" % (curr) 
 			items.append({'removed':'1', 'playlist_meta': {'pafy': 'removed', 'encrypted_id': curr}})
 
+	updated_ids = [i['playlist_meta']['encrypted_id'] for i in items]
+	for y in newitems:
+		curr = y['playlist_meta']['encrypted_id']
+
+		if curr not in updated_ids:
+			items.append(y)
+
+	saveLast(items)
 	return add_index(playlist_data_updated)
 
 def dlVideos(playlist_data, modified=False):
@@ -112,18 +136,18 @@ def dlVideos(playlist_data, modified=False):
 
 		print pprint(playlist_data_idxd)
 
-		#getVideos(playlist_data_idxd, modified=True)
+		dlVideos(playlist_data_idxd, modified=True)
 
 	else:
 		for i in playlist_data_idxd['items']:
 			vid_id = i['playlist_meta']['encrypted_id']
-			vid_url = _BASE+_VID_PATH+vid_id
 			order_id = i['add_order']
 			dirname = vid_id
 			filepath = "%s/%s/%s" % (_STORE_PATH, order_id, dirname)
-			title = i['playlist_meta']['title']
 			if str(order_id) not in existing_dirs:
 					#TODO - factor gdata in
+					title = i['playlist_meta']['title']
+					vid_url = _BASE+_VID_PATH+vid_id
 					video = pafy.new(vid_url, gdata=True)
 					best_dl = video.getbest(preftype="mp4")
 					ext = best_dl.extension
