@@ -67,33 +67,31 @@ def repairMissing(dir_data, playlist_data):
 	olddata = fetchOldData()
 	olditems = olddata['items']
 	old_ids = [i['playlist_meta']['encrypted_id'] for i in olditems]
-	new_ids = [i['playlist_meta']['encrypted_id'] for i in items]
+	new_ids = [i['playlist_meta']['encrypted_id'] for i in playlist_data['items']]
 	dir_ids = dir_data.values()
 
-	'''PROBLEM: this is not adding the videos that have not been downloaded...and it doesn't know that there are any missing.'''
-	'''SOLUTION: open last.json, which is a full record of what was saved last time, 
+	'''open last.json, which is a full record of what was saved last time, 
 					- if dir data not in playlist data, but in old data something was deleted
 					- if playlist data not in dir data and not in old data, it's new, add it.'''
-	for x in playlist_data['items']:
+	for x in olddata['items']:
 		curr = x['playlist_meta']['encrypted_id']
-		if curr in dir_ids:
-			items.append(x)
+
+		if curr in dir_ids and curr in new_ids:
+			pl_item = next((i for i in playlist_data['items'] if i['playlist_meta']['encrypted_id'] == curr), None)
+			items.append(pl_item)
 
 		elif curr not in dir_ids and curr not in old_ids:
-			items.append(x)
+			pl_item = next((i for i in playlist_data['items'] if i['playlist_meta']['encrypted_id'] == curr), None)
+			items.append(pl_item)
 
-		else: '''TODO: this is not working, figure out why.'''
-			for d in dir_ids:	
-				if d not in new_ids and d in old_ids:
-					print "adding removed: "
-					items.append({'removed':'1', 'playlist_meta': {'encrypted_id': dir_data[int(x['add_order'])]}})
+		else: 
+			print "adding removed: %s" % (curr) 
+			items.append({'removed':'1', 'playlist_meta': {'pafy': 'removed', 'encrypted_id': curr}})
 
 	return add_index(playlist_data_updated)
 
 def dlVideos(playlist_data, modified=False):
 	
-	'''would want to skip this on subsequent passes 
-			- you already have the data, you are working with a modified data package'''
 	if modified == True:
 		playlist_data_idxd = playlist_data
 	else:
@@ -115,6 +113,7 @@ def dlVideos(playlist_data, modified=False):
 		print pprint(playlist_data_idxd)
 
 		#getVideos(playlist_data_idxd, modified=True)
+
 	else:
 		for i in playlist_data_idxd['items']:
 			vid_id = i['playlist_meta']['encrypted_id']
@@ -142,15 +141,6 @@ def dlVideos(playlist_data, modified=False):
 					print "depositing metadata for %s" % (title)
 					j.write(metadata)
 				
-
-def refresh():
-	#TODO HERE: 
-			#           1) index the existing set of videos and hash it, make another index and check to see if it's different
-			#			   - could be because something was added, or something was taken away
-			#			2) in future downloads, check whats different and download only what's not already there.
-	pass
-
-
 
 if __name__ == '__main__':
 	print "you have started the preserver..."
