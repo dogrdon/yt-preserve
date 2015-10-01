@@ -64,10 +64,17 @@ def fetchOldData():
 		data = json.load(fp)
 	return data
 
+
 def saveLast(json_in):
+
+	for j in json_in:
+		if 'pafy' in j:
+			j['pafy'] = j['pafy'].__str__()
+
 	file_path = '%s/%s_%s' % (_STORE_PATH, datetime.now().strftime(_DT_FORMAT), _SAVE_FILE)
 	f = open(file_path, 'wt')
 	j = json.dumps(json_in, indent=4)
+	print "saving latest metadata..."
 	f.write(j)
 
 def repairMissing(dir_data, playlist_data):
@@ -133,8 +140,6 @@ def dlVideos(playlist_data, modified=False):
 		dirData = getDirData()
 
 		playlist_data_idxd = repairMissing(dirData, playlist_data_idxd)
-
-		print pprint(playlist_data_idxd)
 
 		dlVideos(playlist_data_idxd, modified=True)
 
